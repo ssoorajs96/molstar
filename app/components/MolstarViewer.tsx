@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import 'molstar/lib/mol-plugin-ui/skin/light.scss';
 
 interface MolstarViewerProps {
     pdbUrl: string;
@@ -31,9 +32,6 @@ export default function MolstarViewer({
             const { PluginCommands } = await import('molstar/lib/mol-plugin/commands');
             const { Color } = await import('molstar/lib/mol-util/color');
             const { Asset } = await import('molstar/lib/mol-util/assets');
-
-            // Import molstar styles
-            await import('molstar/lib/mol-plugin-ui/skin/light.scss');
 
             if (pluginRef.current) {
                 pluginRef.current.dispose();
