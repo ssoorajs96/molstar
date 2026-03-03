@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['molstar'],
-  sassOptions: {
-    silenceDeprecations: ['legacy-js-api'],
-  },
+  // No special config needed — molstar loads from pre-built public/molstar.js
 };
 
 export default nextConfig;

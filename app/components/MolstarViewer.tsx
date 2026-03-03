@@ -1,23 +1,60 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import 'molstar/lib/mol-plugin-ui/skin/light.scss';
 
 interface MolstarViewerProps {
-    pdbUrl: string;
+    pdbId: string;
     className?: string;
-    backgroundColor?: string;
     spin?: boolean;
 }
 
+declare global {
+    interface Window {
+        molstar: {
+            Viewer: {
+                create: (elementOrId: string | HTMLElement, options?: Record<string, unknown>) => Promise<any>;
+            };
+        };
+    }
+}
+
+function loadScript(src: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
+    });
+}
+
+function loadStylesheet(href: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`link[href="${href}"]`)) {
+            resolve();
+            return;
+        }
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = href;
+        link.onload = () => resolve();
+        link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`));
+        document.head.appendChild(link);
+    });
+}
+
 export default function MolstarViewer({
-    pdbUrl,
+    pdbId,
     className = '',
-    backgroundColor = '#0a0a1a',
     spin = false,
 }: MolstarViewerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const pluginRef = useRef<any>(null);
+    const viewerRef = useRef<any>(null);
     const initializingRef = useRef(false);
 
     const initViewer = useCallback(async () => {
@@ -25,68 +62,43 @@ export default function MolstarViewer({
         initializingRef.current = true;
 
         try {
-            // Dynamic imports to avoid SSR issues
-            const { createPluginUI } = await import('molstar/lib/mol-plugin-ui');
-            const { renderReact18 } = await import('molstar/lib/mol-plugin-ui/react18');
-            const { DefaultPluginUISpec } = await import('molstar/lib/mol-plugin-ui/spec');
-            const { PluginCommands } = await import('molstar/lib/mol-plugin/commands');
-            const { Color } = await import('molstar/lib/mol-util/color');
-            const { Asset } = await import('molstar/lib/mol-util/assets');
+            // Load pre-built molstar from public folder (bypasses Turbopack bundling)
+            await loadStylesheet('/molstar.css');
+            await loadScript('/molstar.js');
 
-            if (pluginRef.current) {
-                pluginRef.current.dispose();
+            if (!window.molstar) {
+                throw new Error('Molstar failed to load');
             }
 
-            const plugin = await createPluginUI({
-                target: containerRef.current,
-                render: renderReact18,
-                spec: {
-                    ...DefaultPluginUISpec(),
-                    layout: {
-                        initial: {
-                            isExpanded: false,
-                            showControls: false,
-                        },
-                    },
-                    components: {
-                        remoteState: 'none',
-                    },
-                },
+            if (viewerRef.current) {
+                viewerRef.current.dispose();
+            }
+
+            const viewer = await window.molstar.Viewer.create(containerRef.current, {
+                layoutIsExpanded: false,
+                layoutShowControls: false,
+                layoutShowRemoteState: false,
+                layoutShowSequence: false,
+                layoutShowLog: false,
+                layoutShowLeftPanel: false,
+                viewportShowExpand: false,
+                viewportShowSelectionMode: false,
+                viewportShowAnimation: false,
+                pdbProvider: 'rcsb',
             });
 
-            pluginRef.current = plugin;
+            viewerRef.current = viewer;
 
-            // Set background color
-            const hexColor = parseInt(backgroundColor.replace('#', ''), 16);
-            PluginCommands.Canvas3D.SetSettings(plugin, {
-                settings: (props: any) => {
-                    props.renderer.backgroundColor = Color(hexColor);
-                },
-            });
-
-            // Load structure
-            const data = await plugin.builders.data.download(
-                { url: Asset.Url(pdbUrl), isBinary: false },
-                { state: { isGhost: true } }
-            );
-            const trajectory = await plugin.builders.structure.parseTrajectory(data, 'mmcif');
-            await plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default', {
-                structure: {
-                    name: 'model',
-                    params: {},
-                },
-                showUnitcell: false,
-                representationPreset: 'auto',
-            });
+            // Load structure by PDB ID
+            await viewer.loadPdb(pdbId.toLowerCase());
 
             // Enable spin if requested
-            if (spin && plugin.canvas3d) {
-                PluginCommands.Canvas3D.SetSettings(plugin, {
-                    settings: {
-                        trackball: {
-                            ...plugin.canvas3d.props.trackball,
-                            animate: { name: 'spin', params: { speed: 0.5 } },
-                        },
+            if (spin && viewer.plugin?.canvas3d) {
+                const trackball = viewer.plugin.canvas3d.props.trackball;
+                viewer.plugin.canvas3d.setProps({
+                    trackball: {
+                        ...trackball,
+                        animate: { name: 'spin', params: { speed: 0.5 } },
                     },
                 });
             }
@@ -95,15 +107,15 @@ export default function MolstarViewer({
         } finally {
             initializingRef.current = false;
         }
-    }, [pdbUrl, backgroundColor, spin]);
+    }, [pdbId, spin]);
 
     useEffect(() => {
         initViewer();
 
         return () => {
-            if (pluginRef.current) {
-                pluginRef.current.dispose();
-                pluginRef.current = null;
+            if (viewerRef.current) {
+                viewerRef.current.dispose();
+                viewerRef.current = null;
             }
             initializingRef.current = false;
         };

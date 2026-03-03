@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { getMoleculeById, getMoleculeUrl } from '../../data/mock-molecules';
+import { getMoleculeById } from '../../data/mock-molecules';
 
 const MolstarViewer = dynamic(
     () => import('../../components/MolstarViewer'),
@@ -36,8 +36,6 @@ export default function ViewerPage() {
             </div>
         );
     }
-
-    const pdbUrl = getMoleculeUrl(molecule.pdbId);
 
     return (
         <div className="viewer-layout">
@@ -117,8 +115,7 @@ export default function ViewerPage() {
             {/* Viewer */}
             <main className="viewer-main">
                 <MolstarViewer
-                    pdbUrl={pdbUrl}
-                    backgroundColor="#06061a"
+                    pdbId={molecule.pdbId}
                     spin={true}
                 />
                 <div className="viewer-pdb-badge">
