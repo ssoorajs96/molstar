@@ -35,11 +35,17 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-await viewer.loadPdb(pdbId.toLowerCase(), {
-  representationParams: {
+await plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default', {
+  structure: {
+    name: 'assembly',        // or 'model'
+    params: { id: '1' }
+  },
+  showUnitcell: false,
+  representationPreset: 'auto',
+  representationPresetParams: {
     theme: {
       globalName: 'uniform',
-      globalColorParams: { value: 0x6366f1 } // your custom hex color
+      globalColorParams: { value: 0x6366f1 }
     }
   }
 });
