@@ -42,7 +42,7 @@ export const molecules: Molecule[] = [
         resolution: '1.74 Å',
         organism: 'Homo sapiens',
         classification: 'Oxygen Transport',
-        color: '#ef4444',
+        color: '#000',
         gradient: 'linear-gradient(135deg, #ef4444, #f97316)',
     },
     {
